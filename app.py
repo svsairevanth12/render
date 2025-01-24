@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file
+from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, flash
 import os
 import json
 from datetime import datetime
@@ -174,56 +174,104 @@ def view_form(form_id):
         error_msg = "An unexpected error occurred. Please try again."
         return (jsonify({'error': error_msg}), 500) if preview_mode else (render_template('error.html', error=error_msg), 500)
 
-@app.route('/forms/<int:form_id>/submit', methods=['POST'])
-def submit_form(form_id):
+@app.route('/submit-response/<form_id>', methods=['POST'])
+def submit_response(form_id):
     try:
-        response_data = request.json
+        print(f"Attempting to submit response for form {form_id}")
+        print(f"Request form data: {request.form}")
         
-        # Save response to Supabase
-        data = {
-            'form_id': form_id,
+        # Get form data from database
+        form_response = supabase.table('forms').select('*').eq('id', form_id).execute()
+        print(f"Form query response: {form_response}")
+        
+        if not form_response.data:
+            print(f"Form {form_id} not found")
+            return jsonify({'error': 'Form not found'}), 404
+        
+        form = form_response.data[0]
+        print(f"Found form: {form}")
+        
+        # Collect response data
+        response_data = {}
+        for i, field in enumerate(form['fields'], 1):
+            field_name = f'field_{i}'
+            if field['type'] == 'checkbox':
+                values = request.form.getlist(f'{field_name}[]')
+                response_data[field_name] = values if values else []
+            else:
+                value = request.form.get(field_name)
+                response_data[field_name] = value if value is not None else ''
+
+            if field.get('required') and not response_data[field_name]:
+                error_msg = f'Field "{field["label"]}" is required'
+                print(f"Validation error: {error_msg}")
+                return jsonify({'error': error_msg}), 400
+
+        # Prepare response data
+        current_time = datetime.utcnow().isoformat()
+        response_data_to_insert = {
+            'form_id': int(form_id),  # Keep as integer since we created table with bigint
             'response_data': response_data,
-            'created_at': datetime.now().isoformat()
+            'created_at': current_time
         }
         
-        response = supabase.table('responses').insert(data).execute()
+        print(f"Attempting to save response: {response_data_to_insert}")
         
-        return jsonify({'message': 'Response submitted successfully'})
+        # Try to insert the response directly
+        try:
+            print("Attempting to insert response...")
+            result = supabase.table('form_responses').insert(response_data_to_insert).execute()
+            print(f"Insert result: {result}")
+            
+            if not result.data:
+                print("No data returned from insert")
+                return jsonify({'error': 'Failed to save response'}), 500
+                
+            response_id = result.data[0].get('id')
+            if not response_id:
+                print("No response ID in result data")
+                return jsonify({'error': 'Failed to get response ID'}), 500
+                
+            print(f"Successfully saved response with ID: {response_id}")
+            return jsonify({
+                'message': 'Response submitted successfully',
+                'response_id': response_id
+            }), 200
+            
+        except Exception as insert_error:
+            error_msg = str(insert_error)
+            print(f"Insert error: {error_msg}")
+            print(f"Insert error type: {type(insert_error)}")
+            if hasattr(insert_error, '__dict__'):
+                print(f"Insert error details: {insert_error.__dict__}")
+            
+            if 'relation "form_responses" does not exist' in error_msg:
+                return jsonify({'error': 'The form responses table is not set up in the database. Please run the setup SQL first.'}), 500
+            elif 'violates foreign key constraint' in error_msg:
+                return jsonify({'error': 'Invalid form ID'}), 400
+            else:
+                return jsonify({'error': f'Failed to save response: {error_msg}'}), 500
+            
     except Exception as e:
-        print(f"Error submitting form: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        print(f"Unexpected error: {str(e)}")
+        print(f"Error type: {type(e)}")
+        if hasattr(e, '__dict__'):
+            print(f"Error details: {e.__dict__}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
 
 @app.route('/forms/<int:form_id>/delete', methods=['POST'])
 def delete_form(form_id):
     try:
         # Delete form and its responses from Supabase
-        supabase.table('responses').delete().eq('form_id', form_id).execute()
+        supabase.table('form_responses').delete().eq('form_id', form_id).execute()
         supabase.table('forms').delete().eq('id', form_id).execute()
         
         return jsonify({'message': 'Form deleted successfully'})
     except Exception as e:
         print(f"Error deleting form: {str(e)}")
         return jsonify({'error': str(e)}), 500
-
-@app.route('/forms/<int:form_id>/responses')
-def view_responses(form_id):
-    try:
-        # Fetch form and its responses from Supabase
-        form_response = supabase.table('forms').select('*').eq('id', form_id).single().execute()
-        form = form_response.data
-        
-        if not form:
-            return "Form not found", 404
-            
-        responses_response = supabase.table('responses').select('*').eq('form_id', form_id).order('created_at', desc=True).execute()
-        responses = responses_response.data
-        
-        return render_template('responses.html',
-            form=form,
-            responses=responses)
-    except Exception as e:
-        print(f"Error viewing responses: {str(e)}")
-        return "Error viewing responses", 500
 
 @app.route('/forms/<int:form_id>/export')
 def export_responses(form_id):
@@ -433,6 +481,30 @@ def generate_qr(form_id):
     except Exception as e:
         print(f"Error generating QR code: {str(e)}")
         return "Error generating QR code", 500
+
+@app.route('/forms/<int:form_id>/responses')
+def view_responses(form_id):
+    try:
+        # Get form data
+        form = supabase.table('forms').select('*').eq('id', form_id).execute()
+        if not form.data:
+            flash('Form not found', 'error')
+            return redirect(url_for('home'))
+        
+        form = form.data[0]
+        
+        # Get responses for the form
+        responses = supabase.table('form_responses').select('*').eq('form_id', form_id).order('created_at', desc=True).execute()
+        
+        return render_template(
+            'responses.html',
+            form=form,
+            responses=responses.data
+        )
+    except Exception as e:
+        print(f"Error viewing responses: {str(e)}")
+        flash('Failed to load responses', 'error')
+        return redirect(url_for('home'))
 
 if __name__ == '__main__':
     app.run(debug=True)
