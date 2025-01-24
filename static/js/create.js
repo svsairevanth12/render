@@ -1,123 +1,84 @@
-// Form generation and management
+// Form builder functionality
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize form builder
     const formBuilder = {
-        init() {
+        init: function() {
             this.bindEvents();
             this.setupFormIfEditing();
             this.setupFieldModal();
-            this.setupSpeechRecognition();
         },
 
-        bindEvents() {
-            // AI Generation button
-            const generateBtn = document.getElementById('generate-form-btn');
-            if (generateBtn) {
-                generateBtn.addEventListener('click', this.handleGenerate.bind(this));
-            }
-
-            // Save form button
-            const saveBtn = document.getElementById('save-form-btn');
-            if (saveBtn) {
-                saveBtn.addEventListener('click', this.handleSave.bind(this));
-            }
-
-            // Preview button
-            const previewBtn = document.getElementById('preview-form-btn');
-            if (previewBtn) {
-                previewBtn.addEventListener('click', this.handlePreview.bind(this));
-            }
-
-            // Add field button
-            const addFieldBtn = document.getElementById('add-field-btn');
-            if (addFieldBtn) {
-                addFieldBtn.addEventListener('click', () => {
-                    this.showFieldModal();
-                });
-            }
-        },
-
-        setupFieldModal() {
-            // Field type change handler
-            const fieldType = document.getElementById('field-type');
-            const optionsContainer = document.getElementById('options-container');
+        bindEvents: function() {
+            // Preview button click
+            document.getElementById('preview-btn')?.addEventListener('click', () => this.previewForm());
             
-            fieldType.addEventListener('change', () => {
-                const showOptions = ['select', 'radio', 'checkbox'].includes(fieldType.value);
-                optionsContainer.style.display = showOptions ? 'block' : 'none';
-            });
+            // Save button click
+            document.getElementById('save-btn')?.addEventListener('click', () => this.saveForm());
+            
+            // Add field button click
+            document.getElementById('add-field-btn')?.addEventListener('click', () => this.showAddFieldModal());
 
-            // Add option button
-            const addOptionBtn = document.getElementById('add-option-btn');
-            addOptionBtn.addEventListener('click', () => {
-                this.addOptionInput();
-            });
-
-            // Save field button
-            const saveFieldBtn = document.getElementById('save-field-btn');
-            saveFieldBtn.addEventListener('click', () => {
-                this.saveField();
-            });
-
-            // Add speech recognition to field label input
-            const fieldLabelInput = document.getElementById('field-label');
-            this.addSpeechInput(fieldLabelInput);
+            // AI Generate button click
+            document.getElementById('generate-form-btn')?.addEventListener('click', () => this.generateFormWithAI());
         },
 
-        setupFormIfEditing() {
+        setupFormIfEditing: function() {
+            // If form data exists (editing mode), populate the form
             if (window.formData) {
-                this.populateForm(window.formData);
+                document.getElementById('form-title').value = formData.title || '';
+                document.getElementById('form-description').value = formData.description || '';
+                if (formData.fields && Array.isArray(formData.fields)) {
+                    formData.fields.forEach(field => this.addFieldToUI(field));
+                }
             }
         },
 
-        async handleGenerate(e) {
-            e.preventDefault();
-            const description = document.getElementById('form-description').value.trim();
-            
-            if (!description) {
-                this.showError('Please enter a form description');
-                return;
-            }
-
+        async previewForm() {
             try {
-                this.showLoading('Generating form...');
-                const response = await fetch('/generate-form', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ description })
-                });
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(data.error || 'Failed to generate form');
+                showLoading('Preparing preview...');
+                const formData = this.collectFormData();
+                if (!formData) {
+                    hideLoading();
+                    return;
                 }
 
-                this.populateFormFields(data.fields);
-                this.hideLoading();
-                this.showSuccess('Form generated successfully');
-            } catch (error) {
-                console.error('Error generating form:', error);
-                this.hideLoading();
-                this.showError(error.message || 'Error generating form');
-            }
-        },
-
-        async handleSave(e) {
-            e.preventDefault();
-            const formData = this.collectFormData();
-            
-            if (!this.validateForm(formData)) {
-                return;
-            }
-
-            try {
-                this.showLoading('Saving form...');
                 const response = await fetch('/forms', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+                hideLoading();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to save form');
+                }
+
+                // Redirect to preview page
+                window.location.href = `/forms/${data.id}/preview`;
+            } catch (error) {
+                hideLoading();
+                showError(error.message || 'Error preparing preview. Please try again.');
+            }
+        },
+
+        async saveForm() {
+            try {
+                const formData = this.collectFormData();
+                if (!formData) {
+                    return; // Validation failed
+                }
+
+                showLoading('Saving form...');
+
+                const response = await fetch('/forms', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
                     },
                     body: JSON.stringify(formData)
                 });
@@ -128,339 +89,315 @@ document.addEventListener('DOMContentLoaded', function() {
                     throw new Error(data.error || 'Failed to save form');
                 }
 
-                this.hideLoading();
-                this.showSuccess('Form saved successfully');
-                window.location.href = '/forms/' + data.id;
+                hideLoading();
+                showSuccess('Form saved successfully!');
+
+                // Redirect to home page after successful save
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1500);
             } catch (error) {
-                console.error('Error saving form:', error);
-                this.hideLoading();
-                this.showError(error.message || 'Error saving form');
+                console.error('Save error:', error);
+                hideLoading();
+                showError(error.message || 'Error saving form. Please try again.');
             }
         },
 
-        handlePreview(e) {
-            e.preventDefault();
-            const formData = this.collectFormData();
+        collectFormData: function() {
+            const title = document.getElementById('form-title').value.trim();
+            const description = document.getElementById('form-description').value.trim();
+            const theme = document.getElementById('form-theme').value;
+            const fieldsContainer = document.getElementById('fields-container');
+            const fieldElements = fieldsContainer.getElementsByClassName('field-item');
             
-            if (!this.validateForm(formData)) {
-                return;
+            if (!title) {
+                showError('Please enter a form title');
+                return null;
             }
 
-            // Store form data in localStorage for preview
-            localStorage.setItem('preview_form', JSON.stringify(formData));
-            window.open('/preview', '_blank');
-        },
-
-        collectFormData() {
-            return {
-                id: document.getElementById('form-id')?.value,
-                title: document.getElementById('form-title').value.trim(),
-                description: document.getElementById('form-description').value.trim(),
-                fields: this.getFormFields(),
-                theme: document.getElementById('form-theme').value
-            };
-        },
-
-        validateForm(data) {
-            if (!data.title) {
-                this.showError('Form title is required');
-                return false;
+            if (fieldElements.length === 0) {
+                showError('Please add at least one field to the form');
+                return null;
             }
 
-            if (!data.fields || data.fields.length === 0) {
-                this.showError('At least one form field is required');
-                return false;
-            }
-
-            return true;
-        },
-
-        getFormFields() {
-            const fields = [];
-            const fieldElements = document.querySelectorAll('.form-field');
-            
-            fieldElements.forEach(element => {
-                const field = {
-                    id: element.dataset.fieldId,
-                    label: element.dataset.label,
-                    type: element.dataset.type,
-                    required: element.dataset.required === 'true'
+            const fields = Array.from(fieldElements).map((fieldEl, index) => {
+                const fieldData = {
+                    id: `field_${index + 1}`,
+                    label: fieldEl.querySelector('.field-label').textContent,
+                    type: fieldEl.getAttribute('data-field-type'),
+                    required: fieldEl.querySelector('.field-required').checked
                 };
 
-                if (['select', 'radio', 'checkbox'].includes(field.type)) {
-                    field.options = JSON.parse(element.dataset.options || '[]');
+                if (['select', 'radio', 'checkbox'].includes(fieldData.type)) {
+                    fieldData.options = Array.from(fieldEl.querySelectorAll('.field-option'))
+                        .map(opt => opt.textContent.trim())
+                        .filter(opt => opt); // Remove empty options
                 }
 
-                fields.push(field);
+                return fieldData;
             });
 
-            return fields;
+            const formData = {
+                title,
+                description,
+                theme,
+                fields
+            };
+
+            // If editing an existing form, include the ID
+            const formId = document.getElementById('form-id')?.value;
+            if (formId) {
+                formData.id = parseInt(formId);
+            }
+
+            return formData;
         },
 
-        populateForm(data) {
-            document.getElementById('form-title').value = data.title || '';
-            document.getElementById('form-description').value = data.description || '';
-            if (data.theme) {
-                document.getElementById('form-theme').value = data.theme;
-            }
-            if (data.fields) {
-                this.populateFormFields(data.fields);
-            }
-        },
+        setupFieldModal: function() {
+            // Get modal elements
+            const fieldTypeSelect = document.getElementById('field-type');
+            const optionsContainer = document.getElementById('options-container');
+            const addOptionBtn = document.getElementById('add-option-btn');
+            const saveFieldBtn = document.getElementById('save-field-btn');
+            const fieldOptionsDiv = document.getElementById('field-options');
 
-        populateFormFields(fields) {
-            const fieldsContainer = document.getElementById('form-fields');
-            fieldsContainer.innerHTML = ''; // Clear existing fields
-            
-            fields.forEach(field => {
-                const fieldElement = this.createFieldElement(field);
-                fieldsContainer.appendChild(fieldElement);
+            // Handle field type change
+            fieldTypeSelect?.addEventListener('change', () => {
+                const showOptions = ['select', 'radio', 'checkbox'].includes(fieldTypeSelect.value);
+                optionsContainer.style.display = showOptions ? 'block' : 'none';
+                
+                // Clear existing options
+                fieldOptionsDiv.innerHTML = '';
+                if (showOptions) {
+                    // Add initial options
+                    this.addOptionInput();
+                    this.addOptionInput();
+                }
+            });
+
+            // Handle add option button
+            addOptionBtn?.addEventListener('click', () => {
+                this.addOptionInput();
+            });
+
+            // Handle save field button
+            saveFieldBtn?.addEventListener('click', () => {
+                this.saveField();
             });
         },
 
-        createFieldElement(field) {
-            const div = document.createElement('div');
-            div.className = 'form-field mb-3 p-3 border rounded position-relative';
-            div.dataset.fieldId = field.id;
-            div.dataset.label = field.label;
-            div.dataset.type = field.type;
-            div.dataset.required = field.required;
-            if (field.options) {
-                div.dataset.options = JSON.stringify(field.options);
-            }
-
-            // Add field content
-            div.innerHTML = `
-                <div class="field-actions position-absolute top-0 end-0 m-2">
-                    <button type="button" class="btn btn-sm btn-outline-danger delete-field">×</button>
-                </div>
-                <h5>${field.label} ${field.required ? '<span class="text-danger">*</span>' : ''}</h5>
-                <p class="mb-1 text-muted">Type: ${field.type}</p>
-                ${this.renderFieldPreview(field)}
-            `;
-
-            // Add delete handler
-            div.querySelector('.delete-field').addEventListener('click', () => {
-                div.remove();
-            });
-
-            // Add speech recognition to preview inputs
-            const inputs = div.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="number"], textarea');
-            inputs.forEach(input => this.addSpeechInput(input));
-
-            return div;
-        },
-
-        renderFieldPreview(field) {
-            switch (field.type) {
-                case 'text':
-                case 'email':
-                case 'tel':
-                case 'number':
-                    return `<input type="${field.type}" class="form-control" placeholder="${field.label}" disabled>`;
-                case 'textarea':
-                    return `<textarea class="form-control" placeholder="${field.label}" disabled></textarea>`;
-                case 'select':
-                    return `
-                        <select class="form-control" disabled>
-                            ${field.options?.map(opt => `<option>${opt}</option>`).join('')}
-                        </select>
-                    `;
-                case 'radio':
-                    return `
-                        <div>
-                            ${field.options?.map(opt => `
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" disabled>
-                                    <label class="form-check-label">${opt}</label>
-                                </div>
-                            `).join('')}
-                        </div>
-                    `;
-                case 'checkbox':
-                    return `
-                        <div>
-                            ${field.options?.map(opt => `
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" disabled>
-                                    <label class="form-check-label">${opt}</label>
-                                </div>
-                            `).join('')}
-                        </div>
-                    `;
-                default:
-                    return '';
-            }
-        },
-
-        showFieldModal() {
-            const modal = new bootstrap.Modal(document.getElementById('field-modal'));
-            modal.show();
-        },
-
-        addOptionInput() {
-            const optionsContainer = document.getElementById('field-options');
+        addOptionInput: function() {
+            const fieldOptionsDiv = document.getElementById('field-options');
             const optionDiv = document.createElement('div');
             optionDiv.className = 'input-group mb-2';
-            
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.className = 'form-control';
-            input.placeholder = 'Option text';
-            
-            const deleteButton = document.createElement('button');
-            deleteButton.className = 'btn btn-outline-danger';
-            deleteButton.type = 'button';
-            deleteButton.innerHTML = '×';
-            deleteButton.onclick = () => optionDiv.remove();
-            
-            optionDiv.appendChild(input);
-            optionDiv.appendChild(deleteButton);
-            optionsContainer.appendChild(optionDiv);
-            
-            // Add speech recognition to the new option input
-            this.addSpeechInput(input);
+            optionDiv.innerHTML = `
+                <input type="text" class="form-control option-input" placeholder="Enter option">
+                <button type="button" class="btn btn-outline-secondary mic-button" title="Click to speak">
+                    <i class="fas fa-microphone"></i>
+                </button>
+                <button type="button" class="btn btn-outline-danger" onclick="this.closest('.input-group').remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            fieldOptionsDiv.appendChild(optionDiv);
+
+            // Initialize speech recognition for the new option input
+            const micButton = optionDiv.querySelector('.mic-button');
+            if (micButton) {
+                micButton.addEventListener('click', function() {
+                    const event = new Event('click');
+                    this.dispatchEvent(event);
+                });
+            }
         },
 
-        saveField() {
-            const label = document.getElementById('field-label').value.trim();
-            const type = document.getElementById('field-type').value;
-            const required = document.getElementById('field-required').checked;
-            
-            if (!label) {
-                this.showError('Field label is required');
+        showAddFieldModal: function() {
+            // Reset modal form
+            const modal = document.getElementById('field-modal');
+            const form = modal.querySelector('form');
+            if (form) form.reset();
+
+            // Reset options container
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.style.display = 'none';
+            const fieldOptionsDiv = document.getElementById('field-options');
+            fieldOptionsDiv.innerHTML = '';
+
+            // Show modal
+            const modalInstance = new bootstrap.Modal(modal);
+            modalInstance.show();
+        },
+
+        saveField: function() {
+            const fieldLabel = document.getElementById('field-label').value.trim();
+            const fieldType = document.getElementById('field-type').value;
+            const fieldRequired = document.getElementById('field-required').checked;
+
+            if (!fieldLabel) {
+                showError('Please enter a field label');
                 return;
             }
 
-            const field = {
-                id: 'field_' + Date.now(),
-                label,
-                type,
-                required
+            const fieldData = {
+                label: fieldLabel,
+                type: fieldType,
+                required: fieldRequired
             };
 
-            if (['select', 'radio', 'checkbox'].includes(type)) {
-                const options = Array.from(document.querySelectorAll('#field-options input'))
+            // Get options for select, radio, or checkbox fields
+            if (['select', 'radio', 'checkbox'].includes(fieldType)) {
+                const options = Array.from(document.querySelectorAll('.option-input'))
                     .map(input => input.value.trim())
                     .filter(value => value);
-                
-                if (options.length === 0) {
-                    this.showError('At least one option is required for this field type');
+
+                if (options.length < 2) {
+                    showError('Please add at least two options');
                     return;
                 }
-                
-                field.options = options;
+
+                fieldData.options = options;
             }
 
-            const fieldElement = this.createFieldElement(field);
-            document.getElementById('form-fields').appendChild(fieldElement);
+            // Add field to UI
+            this.addFieldToUI(fieldData);
 
-            // Reset and close modal
-            document.getElementById('field-label').value = '';
-            document.getElementById('field-required').checked = false;
-            document.getElementById('field-options').innerHTML = '';
-            bootstrap.Modal.getInstance(document.getElementById('field-modal')).hide();
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('field-modal'));
+            modal.hide();
         },
 
-        showError(message) {
-            const alert = document.createElement('div');
-            alert.className = 'alert alert-danger';
-            alert.textContent = message;
-            this.showAlert(alert);
-        },
+        addFieldToUI: function(fieldData) {
+            const fieldsContainer = document.getElementById('fields-container');
+            const fieldElement = document.createElement('div');
+            fieldElement.className = 'field-item card mb-3';
+            fieldElement.setAttribute('data-field-type', fieldData.type);
 
-        showSuccess(message) {
-            const alert = document.createElement('div');
-            alert.className = 'alert alert-success';
-            alert.textContent = message;
-            this.showAlert(alert);
-        },
-
-        showAlert(alertElement) {
-            const alertsContainer = document.getElementById('alerts-container');
-            if (alertsContainer) {
-                alertsContainer.innerHTML = '';
-                alertsContainer.appendChild(alertElement);
-                setTimeout(() => {
-                    alertElement.remove();
-                }, 5000);
+            let optionsHtml = '';
+            if (['select', 'radio', 'checkbox'].includes(fieldData.type) && fieldData.options) {
+                optionsHtml = `
+                    <div class="field-options mt-2">
+                        <small class="text-muted">Options:</small>
+                        <ul class="list-unstyled mb-0">
+                            ${fieldData.options.map(opt => `
+                                <li class="field-option">${opt}</li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                `;
             }
+
+            fieldElement.innerHTML = `
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h5 class="field-label mb-1">${fieldData.label}</h5>
+                            <small class="text-muted">${fieldData.type}</small>
+                            ${optionsHtml}
+                        </div>
+                        <div class="d-flex gap-2">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input field-required" 
+                                       ${fieldData.required ? 'checked' : ''}>
+                                <label class="form-check-label">Required</label>
+                            </div>
+                            <button type="button" class="btn btn-outline-danger btn-sm" 
+                                    onclick="this.closest('.field-item').remove()">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            fieldsContainer.appendChild(fieldElement);
         },
 
-        showLoading(message) {
-            const loader = document.getElementById('loader');
-            if (loader) {
-                loader.textContent = message;
-                loader.style.display = 'block';
-            }
-        },
-
-        hideLoading() {
-            const loader = document.getElementById('loader');
-            if (loader) {
-                loader.style.display = 'none';
-            }
-        },
-
-        // Add speech recognition setup
-        setupSpeechRecognition() {
-            if (!('webkitSpeechRecognition' in window)) {
-                console.warn('Speech recognition not supported');
+        async generateFormWithAI() {
+            const description = document.getElementById('ai-description').value.trim();
+            if (!description) {
+                showError('Please enter a description for the form you want to generate');
                 return;
             }
 
-            this.recognition = new webkitSpeechRecognition();
-            this.recognition.continuous = false;
-            this.recognition.interimResults = false;
-            this.recognition.lang = 'en-US';
+            try {
+                showLoading('Generating form with AI...');
+                const response = await fetch('/generate-form', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ description })
+                });
 
-            this.recognition.onresult = (event) => {
-                const text = event.results[0][0].transcript;
-                if (this.currentSpeechInput) {
-                    this.currentSpeechInput.value = text;
-                    this.currentSpeechInput.dispatchEvent(new Event('change'));
+                const data = await response.json();
+                hideLoading();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to generate form');
                 }
-            };
 
-            this.recognition.onerror = (event) => {
-                console.error('Speech recognition error:', event.error);
-                this.showError('Speech recognition failed. Please try again.');
-            };
+                // Clear existing fields
+                document.getElementById('fields-container').innerHTML = '';
 
-            this.recognition.onend = () => {
-                const micButton = this.currentSpeechInput?.parentElement.querySelector('.mic-button');
-                if (micButton) {
-                    micButton.classList.remove('listening');
-                }
-                this.currentSpeechInput = null;
-            };
-        },
+                // Add generated fields
+                data.fields.forEach(field => {
+                    this.addFieldToUI(field);
+                });
 
-        // Add speech input to any input field
-        addSpeechInput(input) {
-            if (!('webkitSpeechRecognition' in window)) return;
-
-            const wrapper = document.createElement('div');
-            wrapper.className = 'input-group';
-            input.parentNode.insertBefore(wrapper, input);
-            wrapper.appendChild(input);
-
-            const micButton = document.createElement('button');
-            micButton.type = 'button';
-            micButton.className = 'btn btn-outline-secondary mic-button';
-            micButton.innerHTML = '<i class="fas fa-microphone"></i>';
-            wrapper.appendChild(micButton);
-
-            micButton.addEventListener('click', () => {
-                if (this.currentSpeechInput) {
-                    this.recognition.stop();
-                }
-                this.currentSpeechInput = input;
-                micButton.classList.add('listening');
-                this.recognition.start();
-            });
+                showSuccess('Form generated successfully!');
+            } catch (error) {
+                hideLoading();
+                showError(error.message);
+            }
         }
     };
 
+    // Initialize form builder
     formBuilder.init();
-}); 
+});
+
+// Helper functions for UI feedback
+function showLoading(message = 'Loading...') {
+    const loadingEl = document.createElement('div');
+    loadingEl.className = 'loading-overlay';
+    loadingEl.innerHTML = `
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <div class="mt-2">${message}</div>
+    `;
+    document.body.appendChild(loadingEl);
+}
+
+function hideLoading() {
+    const loadingEl = document.querySelector('.loading-overlay');
+    if (loadingEl) {
+        loadingEl.remove();
+    }
+}
+
+function showError(message) {
+    const alertsContainer = document.getElementById('alerts-container');
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-danger alert-dismissible fade show';
+    alert.innerHTML = `
+        <strong>Error!</strong> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    alertsContainer.appendChild(alert);
+    alert.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => alert.remove(), 5000);
+}
+
+function showSuccess(message) {
+    const alertsContainer = document.getElementById('alerts-container');
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-success alert-dismissible fade show';
+    alert.innerHTML = `
+        <strong>Success!</strong> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    alertsContainer.appendChild(alert);
+    alert.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => alert.remove(), 5000);
+}

@@ -1,8 +1,9 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, flash
+from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, flash, session, Response
 import os
 import json
 from datetime import datetime
 import csv
+import io
 from io import StringIO, BytesIO
 import google.generativeai as genai
 from google.api_core import retry
@@ -14,11 +15,14 @@ from collections import deque
 from threading import Lock
 from supabase import create_client, Client
 from dotenv import load_dotenv
+from functools import wraps
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
+app.secret_key = 'your-super-secret-key-12345'  # Replace this with a secure random key in production
+app.config['SESSION_TYPE'] = 'filesystem'
 
 # Add datetime filter
 @app.template_filter('datetime')
@@ -59,40 +63,230 @@ except Exception as e:
     print(f"Error initializing Gemini model: {str(e)}")
     model = None
 
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        try:
+            # Sign in with Supabase
+            auth_response = supabase.auth.sign_in_with_password({
+                "email": email,
+                "password": password
+            })
+            
+            if not auth_response.user:
+                return render_template('login.html', error="Invalid credentials")
+            
+            # Store user data in session
+            session['user'] = {
+                'id': auth_response.user.id,
+                'email': auth_response.user.email,
+                'access_token': auth_response.session.access_token,
+                'refresh_token': auth_response.session.refresh_token
+            }
+            
+            # Set Supabase auth header for future requests
+            supabase.postgrest.auth(auth_response.session.access_token)
+            
+            flash('Successfully logged in!', 'success')
+            return redirect(url_for('home'))
+            
+        except Exception as e:
+            print(f"Login error: {str(e)}")
+            error_msg = str(e)
+            if "Invalid login credentials" in error_msg:
+                error_msg = "Invalid email or password"
+            return render_template('login.html', error=error_msg)
+            
+    return render_template('login.html')
+
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        try:
+            # Sign up with Supabase
+            auth_response = supabase.auth.sign_up({
+                "email": email,
+                "password": password
+            })
+            
+            if not auth_response.user:
+                return render_template('signup.html', error="Failed to create account")
+            
+            # Store user data in session
+            session['user'] = {
+                'id': auth_response.user.id,
+                'email': auth_response.user.email,
+                'access_token': auth_response.session.access_token if auth_response.session else None,
+                'refresh_token': auth_response.session.refresh_token if auth_response.session else None
+            }
+            
+            # Set Supabase auth header for future requests
+            if auth_response.session:
+                supabase.postgrest.auth(auth_response.session.access_token)
+            
+            flash('Successfully registered!', 'success')
+            return redirect(url_for('home'))
+            
+        except Exception as e:
+            print(f"Signup error: {str(e)}")
+            error_msg = str(e)
+            if "User already registered" in error_msg:
+                error_msg = "This email is already registered. Please login instead."
+            return render_template('signup.html', error=error_msg)
+            
+    return render_template('signup.html')
+
+@app.route('/logout')
+def logout():
+    try:
+        # Sign out from Supabase
+        if 'user' in session and session['user'].get('access_token'):
+            supabase.auth.sign_out()
+    except Exception as e:
+        print(f"Logout error: {str(e)}")
+    
+    # Clear session
+    session.clear()
+    return redirect(url_for('login'))
+
+@app.before_request
+def check_session():
+    if 'user' in session:
+        try:
+            # Refresh token if needed
+            user = session['user']
+            if user.get('access_token'):
+                supabase.postgrest.auth(user['access_token'])
+        except Exception as e:
+            print(f"Session check error: {str(e)}")
+            session.clear()
+            return redirect(url_for('login'))
+
 @app.route('/')
+@login_required
 def home():
     try:
-        # Fetch forms from Supabase, ordered by updated_at
-        response = supabase.table('forms').select('*').order('updated_at', desc=True).execute()
-        forms = response.data
+        # Get user data from session
+        user_id = session.get('user', {}).get('id')
+        access_token = session.get('user', {}).get('access_token')
+        
+        if not user_id or not access_token:
+            print("No user_id or access_token found in session")
+            session.clear()
+            return redirect(url_for('login'))
+        
+        print(f"Fetching forms for user: {user_id}")
+        
+        # Create a new Supabase client with the user's access token
+        client = create_client(
+            os.getenv('SUPABASE_URL'),
+            os.getenv('SUPABASE_KEY')
+        )
+        client.postgrest.auth(access_token)
+        
+        # Fetch forms for the current user
+        forms_response = client.table('forms').select('*').eq('user_id', user_id).order('created_at', desc=True).execute()
+        print(f"Forms response: {forms_response}")
+        
+        if not forms_response.data:
+            print("No forms found")
+            return render_template('home.html', forms=[])
+            
+        forms = forms_response.data
+        print(f"Found {len(forms)} forms")
+        
         return render_template('home.html', forms=forms)
     except Exception as e:
         print(f"Error fetching forms: {str(e)}")
+        print(f"Error type: {type(e)}")
+        if hasattr(e, '__dict__'):
+            print(f"Error details: {e.__dict__}")
+        import traceback
+        traceback.print_exc()
+        flash('Error fetching forms. Please try again.', 'error')
         return render_template('home.html', forms=[])
 
-@app.route('/create')
+@app.route('/create-form', methods=['GET', 'POST'])
+@login_required
 def create_form():
     return render_template('form_builder.html', form=None)
 
-@app.route('/edit/<int:form_id>')
+@app.route('/forms/<int:form_id>/edit', methods=['GET'])
+@login_required
 def edit_form(form_id):
     try:
-        # Fetch form from Supabase
-        response = supabase.table('forms').select('*').eq('id', form_id).single().execute()
-        form = response.data
+        # Get form data from Supabase
+        response = supabase.table('forms').select('*').eq('id', form_id).execute()
+        if not response.data:
+            flash('Form not found', 'error')
+            return redirect(url_for('home'))
         
-        if form is None:
-            return "Form not found", 404
-            
+        form = response.data[0]
+        
+        # Check if user owns this form
+        if str(form['user_id']) != session['user']['id']:
+            flash('You do not have permission to edit this form', 'error')
+            return redirect(url_for('home'))
+        
         return render_template('form_builder.html', form=form)
     except Exception as e:
-        print(f"Error fetching form: {str(e)}")
-        return "Error fetching form", 500
+        print(f"Error editing form: {str(e)}")
+        flash('An error occurred while loading the form', 'error')
+        return redirect(url_for('home'))
+
+@app.route('/forms/<int:form_id>/preview', methods=['GET'])
+@login_required
+def preview_form(form_id):
+    try:
+        # Get form data from Supabase
+        response = supabase.table('forms').select('*').eq('id', form_id).execute()
+        if not response.data:
+            flash('Form not found', 'error')
+            return redirect(url_for('home'))
+        
+        form = response.data[0]
+        
+        # Check if user owns this form
+        if str(form['user_id']) != session['user']['id']:
+            flash('You do not have permission to preview this form', 'error')
+            return redirect(url_for('home'))
+        
+        return render_template('form_view.html', form=form, preview=True)
+    except Exception as e:
+        print(f"Error previewing form: {str(e)}")
+        flash('An error occurred while loading the form preview', 'error')
+        return redirect(url_for('home'))
 
 @app.route('/forms', methods=['POST'])
+@login_required
 def save_form():
     try:
         data = request.json
+        if not data:
+            print("No JSON data received")
+            return jsonify({'error': 'No data provided'}), 400
+            
+        user_id = session.get('user', {}).get('id')
+        access_token = session.get('user', {}).get('access_token')
+        
+        if not user_id or not access_token:
+            print("No user_id or access_token found in session")
+            return jsonify({'error': 'User not authenticated'}), 401
+        
+        print(f"Received form data: {json.dumps(data, indent=2)}")
+        print(f"User ID: {user_id}")
         
         if not data.get('title'):
             return jsonify({'error': 'Form title is required'}), 400
@@ -107,72 +301,125 @@ def save_form():
 
         current_time = datetime.now().isoformat()
         
-        # Check for duplicate title
+        # Create a new Supabase client with the user's access token
+        client = create_client(
+            os.getenv('SUPABASE_URL'),
+            os.getenv('SUPABASE_KEY')
+        )
+        client.postgrest.auth(access_token)
+        
+        # Check for duplicate title for this user
         base_title = data['title']
         title = base_title
         counter = 1
         
         while True:
-            title_check = supabase.table('forms').select('id').eq('title', title)
-            if 'id' in data:
-                title_check = title_check.neq('id', data['id'])
-            
-            response = title_check.execute()
-            if not response.data:
-                break
+            try:
+                title_check = client.table('forms').select('id').eq('title', title).eq('user_id', user_id)
+                if 'id' in data:
+                    title_check = title_check.neq('id', data['id'])
                 
-            title = f"{base_title} ({counter})"
-            counter += 1
+                response = title_check.execute()
+                print(f"Title check response: {response}")
+                
+                if not response.data:
+                    break
+                    
+                title = f"{base_title} ({counter})"
+                counter += 1
+            except Exception as e:
+                print(f"Error checking title: {str(e)}")
+                return jsonify({'error': 'Error checking form title'}), 500
         
         form_data = {
             'title': title,
             'description': data.get('description', ''),
             'fields': data['fields'],
             'theme': data.get('theme', 'default'),
-            'updated_at': current_time
+            'updated_at': current_time,
+            'user_id': user_id
         }
         
-        if 'id' in data:
-            # Update existing form
-            response = supabase.table('forms').update(form_data).eq('id', data['id']).execute()
-            form_id = data['id']
-        else:
-            # Create new form
-            form_data['created_at'] = current_time
-            response = supabase.table('forms').insert(form_data).execute()
-            form_id = response.data[0]['id']
+        print(f"Preparing to save form data: {json.dumps(form_data, indent=2)}")
         
-        return jsonify({
-            'id': form_id,
-            'title': title,
-            'message': 'Form saved successfully'
-        })
-    except Exception as e:
-        print(f"Error saving form: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/forms/<int:form_id>')
-def view_form(form_id):
-    try:
-        preview_mode = request.args.get('preview', 'false').lower() == 'true'
-        
-        # Fetch form from Supabase
-        response = supabase.table('forms').select('*').eq('id', form_id).single().execute()
-        form = response.data
-        
-        if form is None:
-            error_msg = "Form not found"
-            return (jsonify({'error': error_msg}), 404) if preview_mode else (render_template('error.html', error=error_msg), 404)
-        
-        return render_template('form_view.html',
-            form=form,
-            form_id=form['id'],
-            preview_mode=preview_mode)
+        try:
+            if 'id' in data:
+                # Verify ownership before updating
+                existing_form = client.table('forms').select('user_id').eq('id', data['id']).single().execute()
+                print(f"Existing form check: {existing_form}")
+                
+                if not existing_form.data or existing_form.data['user_id'] != user_id:
+                    return jsonify({'error': 'Unauthorized to modify this form'}), 403
+                    
+                # Update existing form
+                print(f"Updating form {data['id']}")
+                response = client.table('forms').update(form_data).eq('id', data['id']).execute()
+                form_id = data['id']
+            else:
+                # Create new form
+                print("Creating new form")
+                form_data['created_at'] = current_time
+                response = client.table('forms').insert(form_data).execute()
+                print(f"Insert response: {response}")
+                form_id = response.data[0]['id']
+            
+            return jsonify({
+                'id': form_id,
+                'title': title,
+                'message': 'Form saved successfully'
+            })
+        except Exception as e:
+            print(f"Database operation error: {str(e)}")
+            print(f"Error type: {type(e)}")
+            if hasattr(e, '__dict__'):
+                print(f"Error details: {e.__dict__}")
+            return jsonify({'error': f'Database error: {str(e)}'}), 500
             
     except Exception as e:
-        print(f"Error in view_form: {str(e)}")
-        error_msg = "An unexpected error occurred. Please try again."
-        return (jsonify({'error': error_msg}), 500) if preview_mode else (render_template('error.html', error=error_msg), 500)
+        print(f"Unexpected error in save_form: {str(e)}")
+        print(f"Error type: {type(e)}")
+        if hasattr(e, '__dict__'):
+            print(f"Error details: {e.__dict__}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
+
+@app.route('/forms/<int:form_id>/view', methods=['GET'])
+@login_required
+def view_form(form_id):
+    try:
+        print(f"Attempting to view form {form_id}")
+        user_id = session.get('user', {}).get('id')
+        if not user_id:
+            print("No user_id found in session")
+            return render_template('error.html', error="User not authenticated"), 401
+            
+        # Fetch form and verify ownership
+        print(f"Fetching form for user {user_id}")
+        response = supabase.table('forms').select('*').eq('id', form_id).single().execute()
+        print(f"Form fetch response: {response}")
+        
+        if not response.data:
+            print("Form not found")
+            return render_template('error.html', error="Form not found"), 404
+            
+        form = response.data
+        print(f"Retrieved form: {json.dumps(form, indent=2)}")
+        
+        # Check if preview mode
+        preview = request.args.get('preview', 'false').lower() == 'true'
+        print(f"Preview mode: {preview}")
+        
+        return render_template('form_view.html', form=form, preview=preview)
+        
+    except Exception as e:
+        print(f"Error viewing form: {str(e)}")
+        print(f"Error type: {type(e)}")
+        if hasattr(e, '__dict__'):
+            print(f"Error details: {e.__dict__}")
+        import traceback
+        traceback.print_exc()
+        return render_template('error.html', error=f"Error viewing form: {str(e)}")
 
 @app.route('/submit-response/<form_id>', methods=['POST'])
 def submit_response(form_id):
@@ -262,9 +509,17 @@ def submit_response(form_id):
         return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
 
 @app.route('/forms/<int:form_id>/delete', methods=['POST'])
+@login_required
 def delete_form(form_id):
     try:
-        # Delete form and its responses from Supabase
+        user_id = session['user']['id']
+        # Verify ownership before deleting
+        form = supabase.table('forms').select('user_id').eq('id', form_id).single().execute()
+        
+        if not form.data or form.data['user_id'] != user_id:
+            return jsonify({'error': 'Unauthorized to delete this form'}), 403
+        
+        # Delete form and its responses
         supabase.table('form_responses').delete().eq('form_id', form_id).execute()
         supabase.table('forms').delete().eq('id', form_id).execute()
         
@@ -273,49 +528,68 @@ def delete_form(form_id):
         print(f"Error deleting form: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/forms/<int:form_id>/export')
+@app.route('/forms/<int:form_id>/responses')
+@login_required
+def view_responses(form_id):
+    try:
+        # Get form details
+        form = supabase.table('forms').select('*').eq('id', form_id).single().execute()
+        if not form.data:
+            return render_template('error.html', error="Form not found"), 404
+
+        # Get responses
+        responses = supabase.table('form_responses').select('*').eq('form_id', form_id).execute()
+        
+        return render_template('responses.html', 
+            form=form.data, 
+            responses=responses.data)
+    except Exception as e:
+        print(f"Error viewing responses: {str(e)}")
+        return render_template('error.html', error="Failed to fetch responses")
+
+@app.route('/forms/<int:form_id>/responses/export')
+@login_required
 def export_responses(form_id):
     try:
-        # Fetch form and responses from Supabase
-        form_response = supabase.table('forms').select('*').eq('id', form_id).single().execute()
-        form = form_response.data
+        # Get form details
+        form = supabase.table('forms').select('*').eq('id', form_id).single().execute()
+        if not form.data:
+            return jsonify({'error': 'Form not found'}), 404
+
+        # Get responses
+        responses = supabase.table('form_responses').select('*').eq('form_id', form_id).execute()
         
-        if not form:
-            return "Form not found", 404
-            
-        responses_response = supabase.table('responses').select('*').eq('form_id', form_id).order('created_at', desc=True).execute()
-        responses = responses_response.data
-        
-        # Create CSV file
-        si = StringIO()
-        writer = csv.writer(si)
+        # Create CSV data
+        output = io.StringIO()
+        writer = csv.writer(output)
         
         # Write headers
-        headers = ['Timestamp']
-        for field in form['fields']:
+        headers = ['Response ID', 'Submission Date']
+        for field in form.data['fields']:
             headers.append(field['label'])
         writer.writerow(headers)
         
-        # Write responses
-        for response in responses:
-            row = [response['created_at']]
+        # Write response data
+        for response in responses.data:
+            row = [response['id'], response['created_at']]
             response_data = response['response_data']
-            for field in form['fields']:
-                row.append(response_data.get(field['id'], ''))
+            for i, _ in enumerate(form.data['fields'], 1):
+                field_key = f'field_{i}'
+                row.append(response_data.get(field_key, ''))
             writer.writerow(row)
         
-        output = si.getvalue()
-        si.close()
-        
-        return send_file(
-            BytesIO(output.encode()),
+        # Prepare response
+        output.seek(0)
+        return Response(
+            output.getvalue(),
             mimetype='text/csv',
-            as_attachment=True,
-            download_name=f'responses_{form_id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+            headers={
+                'Content-Disposition': f'attachment; filename=form_{form_id}_responses.csv'
+            }
         )
     except Exception as e:
         print(f"Error exporting responses: {str(e)}")
-        return "Error exporting responses", 500
+        return jsonify({'error': str(e)}), 500
 
 # Rate limiter for AI generation
 class RateLimiter:
@@ -481,30 +755,6 @@ def generate_qr(form_id):
     except Exception as e:
         print(f"Error generating QR code: {str(e)}")
         return "Error generating QR code", 500
-
-@app.route('/forms/<int:form_id>/responses')
-def view_responses(form_id):
-    try:
-        # Get form data
-        form = supabase.table('forms').select('*').eq('id', form_id).execute()
-        if not form.data:
-            flash('Form not found', 'error')
-            return redirect(url_for('home'))
-        
-        form = form.data[0]
-        
-        # Get responses for the form
-        responses = supabase.table('form_responses').select('*').eq('form_id', form_id).order('created_at', desc=True).execute()
-        
-        return render_template(
-            'responses.html',
-            form=form,
-            responses=responses.data
-        )
-    except Exception as e:
-        print(f"Error viewing responses: {str(e)}")
-        flash('Failed to load responses', 'error')
-        return redirect(url_for('home'))
 
 if __name__ == '__main__':
     app.run(debug=True)
