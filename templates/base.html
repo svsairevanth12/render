@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Form Builder</title>
+    <title>Fill Easy - Intelligent Form Builder</title>
     
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -173,29 +173,152 @@
         .loading {
             display: none;
         }
+
+        /* Add this to your existing styles */
+        .navbar {
+            padding: 0.5rem 1rem;
+        }
+
+        .navbar-brand {
+            font-size: calc(1.5rem + 1vw);
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            padding: 0;
+        }
+
+        .brand-logo {
+            height: min(100px, 18vw);
+            width: auto;
+            transition: transform 0.3s ease;
+            margin-right: calc(0.5rem + 1vw);
+        }
+
+        .navbar-brand:hover .brand-logo {
+            transform: scale(1.05);
+        }
+
+        .navbar-brand span {
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .navbar > .container {
+            min-height: min(110px, 20vw);
+        }
+
+        /* Large screens (desktops) */
+        @media (min-width: 1200px) {
+            .brand-logo {
+                height: 100px;
+            }
+            .navbar-brand {
+                font-size: 2.4rem;
+            }
+            .navbar > .container {
+                min-height: 110px;
+            }
+        }
+
+        /* Medium screens (tablets) */
+        @media (max-width: 991px) {
+            .brand-logo {
+                height: 85px;
+            }
+            .navbar-brand {
+                font-size: 2.2rem;
+            }
+            .navbar > .container {
+                min-height: 95px;
+            }
+        }
+
+        /* Small screens (mobile) */
+        @media (max-width: 767px) {
+            .brand-logo {
+                height: 75px;
+            }
+            .navbar-brand {
+                font-size: 2rem;
+            }
+            .navbar > .container {
+                min-height: 85px;
+            }
+        }
+
+        /* Extra small screens */
+        @media (max-width: 575px) {
+            .brand-logo {
+                height: 65px;
+            }
+            .navbar-brand {
+                font-size: 1.8rem;
+            }
+            .navbar > .container {
+                min-height: 75px;
+            }
+            .navbar-brand span {
+                font-size: calc(1.4rem + 1vw);
+            }
+        }
+
+        /* Container responsiveness */
+        .container {
+            width: 100%;
+            padding-right: max(15px, 3vw);
+            padding-left: max(15px, 3vw);
+            margin-right: auto;
+            margin-left: auto;
+        }
+
+        /* Card responsiveness */
+        .card {
+            margin-bottom: max(1rem, 2vh);
+        }
+
+        /* Button responsiveness */
+        .btn {
+            padding: clamp(0.375rem, 1vw, 0.75rem) clamp(0.75rem, 2vw, 1.5rem);
+            font-size: clamp(0.875rem, 1vw, 1rem);
+        }
+
+        /* Form control responsiveness */
+        .form-control {
+            padding: clamp(0.375rem, 1vw, 0.75rem);
+            font-size: clamp(0.875rem, 1vw, 1rem);
+        }
+
+        /* Spacing utilities */
+        .mt-responsive {
+            margin-top: clamp(1rem, 3vh, 3rem);
+        }
+
+        .mb-responsive {
+            margin-bottom: clamp(1rem, 3vh, 3rem);
+        }
+
+        .py-responsive {
+            padding-top: clamp(1rem, 3vh, 3rem);
+            padding-bottom: clamp(1rem, 3vh, 3rem);
+        }
     </style>
 </head>
 <body>
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
-            <a class="navbar-brand" href="{{ url_for('home') }}">
-                <i class="fas fa-wpforms me-2"></i>Form Builder
+            <a class="navbar-brand d-flex align-items-center" href="{{ url_for('dashboard') if current_user else url_for('home') }}">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Fill Easy Logo" class="brand-logo me-2">
+                <span>Fill Easy</span>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
-                    {% if 'user' in session %}
+                    {% if current_user %}
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'home' %}active{% endif %}" href="{{ url_for('home') }}">
-                            <i class="fas fa-list me-1"></i>My Forms
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'create_form' %}active{% endif %}" href="{{ url_for('create_form') }}">
-                            <i class="fas fa-plus me-1"></i>Create Form
+                        <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
+                            <i class="fas fa-home me-1"></i>Dashboard
                         </a>
                     </li>
                     {% endif %}

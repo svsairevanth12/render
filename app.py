@@ -98,7 +98,7 @@ def login():
             supabase.postgrest.auth(auth_response.session.access_token)
             
             flash('Successfully logged in!', 'success')
-            return redirect(url_for('home'))
+            return redirect(url_for('dashboard'))
             
         except Exception as e:
             print(f"Login error: {str(e)}")
@@ -137,7 +137,7 @@ def signup():
                 supabase.postgrest.auth(auth_response.session.access_token)
             
             flash('Successfully registered!', 'success')
-            return redirect(url_for('home'))
+            return redirect(url_for('dashboard'))
             
         except Exception as e:
             print(f"Signup error: {str(e)}")
@@ -175,8 +175,14 @@ def check_session():
             return redirect(url_for('login'))
 
 @app.route('/')
-@login_required
 def home():
+    if 'user' not in session:
+        return render_template('landing.html')
+    return redirect(url_for('dashboard'))
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
     try:
         # Get user data from session
         user_id = session.get('user', {}).get('id')
@@ -231,20 +237,20 @@ def edit_form(form_id):
         response = supabase.table('forms').select('*').eq('id', form_id).execute()
         if not response.data:
             flash('Form not found', 'error')
-            return redirect(url_for('home'))
+            return redirect(url_for('dashboard'))
         
         form = response.data[0]
         
         # Check if user owns this form
         if str(form['user_id']) != session['user']['id']:
             flash('You do not have permission to edit this form', 'error')
-            return redirect(url_for('home'))
+            return redirect(url_for('dashboard'))
         
         return render_template('form_builder.html', form=form)
     except Exception as e:
         print(f"Error editing form: {str(e)}")
         flash('An error occurred while loading the form', 'error')
-        return redirect(url_for('home'))
+        return redirect(url_for('dashboard'))
 
 @app.route('/forms/<int:form_id>/preview', methods=['GET'])
 @login_required
@@ -254,20 +260,20 @@ def preview_form(form_id):
         response = supabase.table('forms').select('*').eq('id', form_id).execute()
         if not response.data:
             flash('Form not found', 'error')
-            return redirect(url_for('home'))
+            return redirect(url_for('dashboard'))
         
         form = response.data[0]
         
         # Check if user owns this form
         if str(form['user_id']) != session['user']['id']:
             flash('You do not have permission to preview this form', 'error')
-            return redirect(url_for('home'))
+            return redirect(url_for('dashboard'))
         
         return render_template('form_view.html', form=form, preview=True)
     except Exception as e:
         print(f"Error previewing form: {str(e)}")
         flash('An error occurred while loading the form preview', 'error')
-        return redirect(url_for('home'))
+        return redirect(url_for('dashboard'))
 
 @app.route('/forms', methods=['POST'])
 @login_required
