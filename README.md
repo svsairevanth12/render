@@ -121,4 +121,14 @@ flask run
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Live Instance
+
+The application is deployed and accessible at: https://render-2-3r0c.onrender.com/
+
+**Note about Free Tier Limitations:**
+- This instance is running on Render's free tier service
+- Free instances automatically spin down after periods of inactivity
+- Initial requests after inactivity may experience delays of 50 seconds or more
+- Please be patient during the initial load as the service spins up 
