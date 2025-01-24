@@ -1,375 +1,121 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Form Preview</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <style>
-        /* Theme Variables */
-        .theme-default {
-            --primary-color: #7C3AED;
-            --primary-hover: #6D28D9;
-            --secondary-color: #F4F4F5;
-            --text-primary: #18181B;
-            --text-secondary: #71717A;
-            --background: #F8FAFC;
-            --surface: #FFFFFF;
-            --border: #E4E4E7;
-            --error: #DC2626;
-        }
+{% extends "base.html" %}
 
-        .theme-dark {
-            --primary-color: #8B5CF6;
-            --primary-hover: #7C3AED;
-            --secondary-color: #374151;
-            --text-primary: #F9FAFB;
-            --text-secondary: #D1D5DB;
-            --background: #111827;
-            --surface: #1F2937;
-            --border: #374151;
-            --error: #EF4444;
-        }
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <!-- Preview Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-eye me-2"></i>Form Preview</h2>
+                <div>
+                    <a href="{{ url_for('edit_form', form_id=form.id) }}" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-pencil-alt me-2"></i>Edit Form
+                    </a>
+                    <a href="{{ url_for('share_form', form_id=form.id) }}" class="btn btn-success">
+                        <i class="fas fa-share-alt me-2"></i>Share Form
+                    </a>
+                </div>
+            </div>
 
-        .theme-colorful {
-            --primary-color: #FF6B6B;
-            --primary-hover: #FA5252;
-            --secondary-color: #4ECDC4;
-            --text-primary: #2C3E50;
-            --text-secondary: #34495E;
-            --background: #F8F9FA;
-            --surface: #FFFFFF;
-            --border: #CED4DA;
-            --error: #E74C3C;
-        }
+            <!-- Form Preview Card -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="card-title mb-0">
+                        <i class="fas fa-file-alt me-2"></i>{{ form.title }}
+                    </h3>
+                </div>
+                <div class="card-body">
+                    {% if form.description %}
+                    <p class="card-text mb-4">
+                        <i class="fas fa-info-circle me-2"></i>{{ form.description }}
+                    </p>
+                    <hr>
+                    {% endif %}
 
-        .theme-minimal {
-            --primary-color: #000000;
-            --primary-hover: #333333;
-            --secondary-color: #F5F5F5;
-            --text-primary: #000000;
-            --text-secondary: #666666;
-            --background: #FFFFFF;
-            --surface: #FFFFFF;
-            --border: #EEEEEE;
-            --error: #FF0000;
-        }
+                    <!-- Preview Form Fields -->
+                    {% for field in form.fields %}
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">
+                            {{ field.label }}
+                            {% if field.required %}
+                            <span class="text-danger">*</span>
+                            {% endif %}
+                        </label>
 
-        body {
-            font-family: 'Inter', sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: var(--background);
-            color: var(--text-primary);
-            transition: all 0.3s ease;
-        }
+                        {% if field.type == 'text' or field.type == 'email' or field.type == 'tel' %}
+                        <input type="{{ field.type }}" 
+                               class="form-control" 
+                               placeholder="Enter {{ field.label|lower }}"
+                               disabled>
 
-        .preview-banner {
-            background: var(--primary-color);
-            color: white;
-            text-align: center;
-            padding: 10px;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 1000;
-            font-weight: 500;
-        }
+                        {% elif field.type == 'textarea' %}
+                        <textarea class="form-control" 
+                                  rows="3" 
+                                  placeholder="Enter {{ field.label|lower }}"
+                                  disabled></textarea>
 
-        .container {
-            max-width: 800px;
-            margin: 60px auto 0;
-        }
+                        {% elif field.type == 'select' %}
+                        <select class="form-select" disabled>
+                            <option value="">Select {{ field.label|lower }}</option>
+                            {% for option in field.options %}
+                            <option value="{{ option }}">{{ option }}</option>
+                            {% endfor %}
+                        </select>
 
-        .form-container {
-            background: var(--surface);
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            padding: 2rem;
-        }
+                        {% elif field.type == 'radio' %}
+                        <div>
+                            {% for option in field.options %}
+                            <div class="form-check">
+                                <input type="radio" 
+                                       class="form-check-input" 
+                                       disabled>
+                                <label class="form-check-label">{{ option }}</label>
+                            </div>
+                            {% endfor %}
+                        </div>
 
-        .header {
-            border-bottom: 3px solid var(--primary-color);
-            margin-bottom: 2rem;
-            padding-bottom: 1rem;
-        }
+                        {% elif field.type == 'checkbox' %}
+                        <div>
+                            {% for option in field.options %}
+                            <div class="form-check">
+                                <input type="checkbox" 
+                                       class="form-check-input" 
+                                       disabled>
+                                <label class="form-check-label">{{ option }}</label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
 
-        .header h1 {
-            margin: 0 0 0.5rem 0;
-            color: var(--text-primary);
-            font-size: 2rem;
-            font-weight: 600;
-        }
+                        {% if field.help_text %}
+                        <div class="form-text text-muted">
+                            <i class="fas fa-question-circle me-1"></i>{{ field.help_text }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
 
-        .header p {
-            margin: 0;
-            color: var(--text-secondary);
-            font-size: 1rem;
-            line-height: 1.5;
-        }
+                    <!-- Preview Submit Button -->
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-primary" disabled>
+                            <i class="fas fa-paper-plane me-2"></i>Submit Form
+                        </button>
+                    </div>
+                </div>
+            </div>
 
-        .form-field {
-            margin-bottom: 2rem;
-        }
-
-        .field-label {
-            font-size: 1rem;
-            color: var(--text-primary);
-            margin-bottom: 0.5rem;
-            display: block;
-            font-weight: 500;
-        }
-
-        .required::after {
-            content: " *";
-            color: var(--error);
-        }
-
-        input[type="text"],
-        input[type="email"],
-        input[type="number"],
-        input[type="date"],
-        textarea,
-        select {
-            width: 100%;
-            padding: 0.75rem;
-            border: 2px solid var(--border);
-            border-radius: 8px;
-            font-size: 1rem;
-            margin-top: 0.25rem;
-            background: var(--surface);
-            color: var(--text-primary);
-            transition: all 0.2s ease;
-            box-sizing: border-box;
-        }
-
-        input:focus,
-        textarea:focus,
-        select:focus {
-            outline: none;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
-        }
-
-        .radio-group,
-        .checkbox-group {
-            margin-top: 0.5rem;
-        }
-
-        .option-item {
-            margin-bottom: 0.75rem;
-            display: flex;
-            align-items: center;
-        }
-
-        .option-item input[type="radio"],
-        .option-item input[type="checkbox"] {
-            margin-right: 0.5rem;
-        }
-
-        .option-item label {
-            color: var(--text-primary);
-            font-size: 1rem;
-        }
-
-        .actions {
-            margin-top: 2rem;
-            padding-top: 1rem;
-            border-top: 2px solid var(--border);
-            text-align: right;
-        }
-
-        .btn {
-            display: inline-block;
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            border: none;
-            text-decoration: none;
-            margin-left: 1rem;
-        }
-
-        .btn-primary {
-            background: var(--primary-color);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: var(--primary-hover);
-            transform: translateY(-1px);
-        }
-
-        .btn-secondary {
-            background: var(--secondary-color);
-            color: var(--text-primary);
-        }
-
-        .btn-secondary:hover {
-            background: var(--border);
-        }
-
-        .no-preview {
-            text-align: center;
-            padding: 4rem 2rem;
-            color: var(--text-secondary);
-        }
-
-        @media (max-width: 640px) {
-            .container {
-                padding: 1rem;
-            }
-            
-            .form-container {
-                padding: 1rem;
-            }
-            
-            .actions {
-                display: flex;
-                flex-direction: column;
-                gap: 0.5rem;
-            }
-            
-            .btn {
-                width: 100%;
-                margin: 0;
-                text-align: center;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="preview-banner">
-        Preview Mode - This is how your form will look
-    </div>
-
-    <div class="container">
-        <div class="form-container">
-            <div id="formContent">
-                <div class="no-preview">Loading preview...</div>
+            <!-- Preview Actions -->
+            <div class="mt-4 d-flex justify-content-between">
+                <a href="{{ url_for('home') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Forms
+                </a>
+                <div>
+                    <a href="{{ url_for('view_responses', form_id=form.id) }}" class="btn btn-info">
+                        <i class="fas fa-chart-bar me-2"></i>View Responses
+                    </a>
+                </div>
             </div>
         </div>
     </div>
-
-    <script>
-        function init() {
-            const formData = JSON.parse(localStorage.getItem('formPreview'));
-            if (!formData) {
-                document.getElementById('formContent').innerHTML = `
-                    <div class="no-preview">
-                        <h2>No preview data available</h2>
-                        <p>Please return to the form builder and use the preview button.</p>
-                    </div>
-                `;
-                return;
-            }
-
-            // Apply theme
-            document.body.className = `theme-${formData.theme || 'default'}`;
-
-            // Render form
-            document.getElementById('formContent').innerHTML = `
-                <div class="header">
-                    <h1>${escapeHtml(formData.title || 'Untitled Form')}</h1>
-                    ${formData.description ? `<p>${escapeHtml(formData.description)}</p>` : ''}
-                </div>
-
-                <form id="previewForm" onsubmit="return false;">
-                    ${formData.fields.map((field, index) => renderField(field, index)).join('')}
-                </form>
-
-                <div class="actions">
-                    <button class="btn btn-secondary" onclick="window.close()">Close Preview</button>
-                </div>
-            `;
-        }
-
-        function escapeHtml(str) {
-            const div = document.createElement('div');
-            div.textContent = str;
-            return div.innerHTML;
-        }
-
-        function renderField(field, index) {
-            const label = `
-                <label class="field-label ${field.required ? 'required' : ''}">
-                    ${escapeHtml(field.label || `Untitled ${field.type.charAt(0).toUpperCase() + field.type.slice(1)}`)}
-                </label>
-            `;
-
-            let input = '';
-            switch (field.type) {
-                case 'text':
-                    input = `<input type="text" ${field.required ? 'required' : ''}>`;
-                    break;
-                case 'textarea':
-                    input = `<textarea rows="4" ${field.required ? 'required' : ''}></textarea>`;
-                    break;
-                case 'email':
-                    input = `<input type="email" ${field.required ? 'required' : ''}>`;
-                    break;
-                case 'number':
-                    input = `<input type="number" ${field.required ? 'required' : ''}>`;
-                    break;
-                case 'date':
-                    input = `<input type="date" ${field.required ? 'required' : ''}>`;
-                    break;
-                case 'radio':
-                    input = `
-                        <div class="radio-group">
-                            ${field.options.map((option, optIndex) => `
-                                <div class="option-item">
-                                    <input type="radio" 
-                                           name="field_${index}"
-                                           id="field_${index}_${optIndex}"
-                                           value="${escapeHtml(option)}"
-                                           ${field.required ? 'required' : ''}>
-                                    <label for="field_${index}_${optIndex}">${escapeHtml(option)}</label>
-                                </div>
-                            `).join('')}
-                        </div>
-                    `;
-                    break;
-                case 'checkbox':
-                    input = `
-                        <div class="checkbox-group">
-                            ${field.options.map((option, optIndex) => `
-                                <div class="option-item">
-                                    <input type="checkbox" 
-                                           name="field_${index}"
-                                           id="field_${index}_${optIndex}"
-                                           value="${escapeHtml(option)}">
-                                    <label for="field_${index}_${optIndex}">${escapeHtml(option)}</label>
-                                </div>
-                            `).join('')}
-                        </div>
-                    `;
-                    break;
-                case 'select':
-                    input = `
-                        <select ${field.required ? 'required' : ''}>
-                            <option value="">Choose an option</option>
-                            ${field.options.map(option => `
-                                <option value="${escapeHtml(option)}">${escapeHtml(option)}</option>
-                            `).join('')}
-                        </select>
-                    `;
-                    break;
-            }
-
-            return `
-                <div class="form-field">
-                    ${label}
-                    ${input}
-                </div>
-            `;
-        }
-
-        // Initialize the preview
-        document.addEventListener('DOMContentLoaded', init);
-    </script>
-</body>
-</html>
+</div>
+{% endblock %}

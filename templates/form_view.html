@@ -1,726 +1,369 @@
-<!DOCTYPE html>
-<html lang="en">
-<!-- Previous head and style sections remain the same until line 312 -->
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title }}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <style>
-        /* Theme Variables */
-        .theme-default {
-            --primary-color: #7C3AED;
-            --primary-hover: #6D28D9;
-            --secondary-color: #F4F4F5;
-            --text-primary: #18181B;
-            --text-secondary: #71717A;
-            --background: #F8FAFC;
-            --surface: #FFFFFF;
-            --border: #E4E4E7;
-            --error: #DC2626;
-        }
+{% extends "base.html" %}
 
-        .theme-dark {
-            --primary-color: #8B5CF6;
-            --primary-hover: #7C3AED;
-            --secondary-color: #374151;
-            --text-primary: #F9FAFB;
-            --text-secondary: #D1D5DB;
-            --background: #111827;
-            --surface: #1F2937;
-            --border: #374151;
-            --error: #EF4444;
-        }
-
-        .theme-colorful {
-            --primary-color: #FF6B6B;
-            --primary-hover: #FA5252;
-            --secondary-color: #4ECDC4;
-            --text-primary: #2C3E50;
-            --text-secondary: #34495E;
-            --background: #F8F9FA;
-            --surface: #FFFFFF;
-            --border: #CED4DA;
-            --error: #E74C3C;
-        }
-
-        .theme-minimal {
-            --primary-color: #000000;
-            --primary-hover: #333333;
-            --secondary-color: #F5F5F5;
-            --text-primary: #000000;
-            --text-secondary: #666666;
-            --background: #FFFFFF;
-            --surface: #FFFFFF;
-            --border: #EEEEEE;
-            --error: #FF0000;
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: var(--background);
-            color: var(--text-primary);
-            transition: all 0.3s ease;
-        }
-
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-
-        .nav-links {
-            margin-bottom: 1rem;
-        }
-
-        .nav-links a {
-            color: var(--primary-color);
-            text-decoration: none;
-            font-weight: 500;
-            margin-right: 1rem;
-            transition: color 0.2s ease;
-        }
-
-        .nav-links a:hover {
-            color: var(--primary-hover);
-        }
-
-        .form-container {
-            background: var(--surface);
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            padding: 2rem;
-            margin-bottom: 1rem;
-        }
-
-        .header {
-            border-bottom: 3px solid var(--primary-color);
-            margin-bottom: 2rem;
-            padding-bottom: 1rem;
-        }
-
-        .header h1 {
-            margin: 0 0 0.5rem 0;
-            color: var(--text-primary);
-            font-size: 2rem;
-            font-weight: 600;
-        }
-
-        .header p {
-            margin: 0;
-            color: var(--text-secondary);
-            font-size: 1rem;
-            line-height: 1.5;
-        }
-
-        .form-field {
-            margin-bottom: 2rem;
-        }
-
-        .field-label {
-            font-size: 1rem;
-            color: var(--text-primary);
-            margin-bottom: 0.5rem;
-            display: block;
-            font-weight: 500;
-        }
-
-        .required::after {
-            content: " *";
-            color: var(--error);
-        }
-
-        input[type="text"],
-        input[type="email"],
-        input[type="number"],
-        input[type="date"],
-        textarea,
-        select {
-            width: 100%;
-            padding: 0.75rem;
-            border: 2px solid var(--border);
-            border-radius: 8px;
-            font-size: 1rem;
-            margin-top: 0.25rem;
-            background: var(--surface);
-            color: var(--text-primary);
-            transition: all 0.2s ease;
-            box-sizing: border-box;
-        }
-
-        input:focus,
-        textarea:focus,
-        select:focus {
-            outline: none;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
-        }
-
-        .radio-group,
-        .checkbox-group {
-            margin-top: 0.5rem;
-        }
-
-        .option-item {
-            margin-bottom: 0.75rem;
-            display: flex;
-            align-items: center;
-        }
-
-        .option-item input[type="radio"],
-        .option-item input[type="checkbox"] {
-            margin-right: 0.5rem;
-        }
-
-        .option-item label {
-            color: var(--text-primary);
-            font-size: 1rem;
-        }
-
-        .actions {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 2rem;
-            padding-top: 1rem;
-            border-top: 2px solid var(--border);
-        }
-
-        .btn {
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            border: none;
-        }
-
-        .btn-primary {
-            background: var(--primary-color);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: var(--primary-hover);
-            transform: translateY(-1px);
-        }
-
-        .btn-secondary {
-            background: var(--secondary-color);
-            color: var(--text-primary);
-        }
-
-        .btn-secondary:hover {
-            background: var(--border);
-        }
-
-        /* Success Message Overlay */
-        .success-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .success-message {
-            background: var(--surface);
-            padding: 2rem;
-            border-radius: 12px;
-            text-align: center;
-            max-width: 400px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        .success-message h2 {
-            color: var(--success);
-            margin: 0 0 1rem 0;
-        }
-
-        .success-message p {
-            color: var(--text-secondary);
-            margin: 0 0 1.5rem 0;
-        }
-
-        .success-actions {
-            display: flex;
-            gap: 1rem;
-            justify-content: center;
-        }
-
-        @keyframes checkmark {
-            0% { transform: scale(0); }
-            50% { transform: scale(1.2); }
-            100% { transform: scale(1); }
-        }
-
-        .success-icon {
-            font-size: 3rem;
-            color: var(--success);
-            margin-bottom: 1rem;
-            display: inline-block;
-            animation: checkmark 0.5s ease-in-out;
-        }
-
-        @media (max-width: 640px) {
-            .container {
-                padding: 1rem;
-            }
-            
-            .form-container {
-                padding: 1rem;
-            }
-            
-            .actions {
-                flex-direction: column-reverse;
-                gap: 1rem;
-            }
-            
-            .btn {
-                width: 100%;
-            }
-        }
-
-        /* Add mic button styles */
-        .mic-button {
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-            flex-shrink: 0;
-        }
-
-        .mic-button:hover {
-            background: var(--primary-hover);
-            transform: scale(1.1);
-        }
-
-        .mic-button.recording {
-            animation: pulse 1.5s infinite;
-            background: var(--error);
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
-        }
-
-        .preview-banner {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background-color: #ff9800;
-            color: white;
-            text-align: center;
-            padding: 10px;
-            z-index: 1000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .preview-banner button {
-            background-color: white;
-            color: #ff9800;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        .form-container {
-            max-width: 800px;
-            margin: 20px auto;
-            padding: 20px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .form-header {
-            margin-bottom: 30px;
-        }
-
-        .header-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 20px;
-        }
-
-        .back-button, .view-responses-button, .export-button {
-            padding: 8px 16px;
-            border-radius: 4px;
-            text-decoration: none;
-            color: white;
-            background-color: #007bff;
-        }
-
-        .export-button {
-            background-color: #28a745;
-        }
-
-        .form-field {
-            margin-bottom: 20px;
-        }
-
-        .form-input, .form-textarea, .form-select {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            margin-top: 5px;
-        }
-
-        .input-group {
-            display: flex;
-            gap: 10px;
-        }
-
-        .mic-button {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 20px;
-            padding: 5px;
-        }
-
-        .mic-button.recording {
-            color: red;
-            animation: pulse 1s infinite;
-        }
-
-        .radio-group, .checkbox-group {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-top: 5px;
-        }
-
-        .required {
-            color: red;
-        }
-
-        .form-actions {
-            margin-top: 30px;
-            text-align: center;
-        }
-
-        .submit-button {
-            padding: 10px 20px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        .submit-button:disabled {
-            background-color: #ccc;
-            cursor: not-allowed;
-        }
-
-        .overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(0,0,0,0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-
-        .overlay-content {
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            text-align: center;
-        }
-
-        .overlay-actions {
-            margin-top: 20px;
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-        }
-
-        .overlay-actions button {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            background-color: #007bff;
-            color: white;
-        }
-    </style>
-</head>
-<body class="theme-{{ theme }}">
-    <!-- Store app data -->
-    <div id="app-data" 
-         data-home-url="{{ url_for('home') }}"
-         data-preview-mode="{{ 'true' if preview_mode else 'false' }}">
-    </div>
-
-    {% if preview_mode %}
-    <div class="preview-banner">
-        Preview Mode
-        <button onclick="window.close()">Close Preview</button>
-    </div>
-    {% endif %}
-
-    <div class="container">
-        <div class="nav-links">
-            <a href="{{ url_for('home') }}">← Back to Forms</a>
-            <a href="{{ url_for('view_responses', form_id=form_id) }}">View Responses</a>
-        </div>
-        
-        <div class="form-container theme-{{ form.theme }}">
-            <div class="form-header">
-                <h1>{{ form.title }}</h1>
-                {% if form.description %}
-                <p class="form-description">{{ form.description }}</p>
-                {% endif %}
-                
-                {% if not preview_mode %}
-                <div class="header-actions">
-                    <a href="/" class="back-button">Back to Forms</a>
-                    <a href="{{ url_for('view_responses', form_id=form_id) }}" class="view-responses-button">View Responses</a>
-                    <a href="{{ url_for('export_responses', form_id=form_id) }}" class="export-button">📊 Export Responses</a>
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <!-- Form Card -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="card-title mb-0">
+                        <i class="fas fa-file-alt me-2"></i>{{ form.title }}
+                        {% if preview_mode %}
+                        <span class="badge bg-warning text-dark ms-2">Preview Mode</span>
+                        {% endif %}
+                    </h3>
                 </div>
-                {% endif %}
-            </div>
-
-            <form id="formView" action="{{ url_for('submit_form', form_id=form_id) }}" method="POST" {% if preview_mode %}onsubmit="return false;"{% endif %}>
-                {% for field in form.fields %}
-                <div class="form-field">
-                    <label for="field_{{ loop.index0 }}">
-                        {{ field.label }}
-                        {% if field.required %}
-                        <span class="required">*</span>
-                        {% endif %}
-                    </label>
-
-                    {% if field.type == 'text' or field.type == 'email' or field.type == 'number' or field.type == 'date' %}
-                    <div class="input-group">
-                        <input type="{{ field.type }}" 
-                               id="field_{{ loop.index0 }}" 
-                               name="field_{{ loop.index0 }}"
-                               {% if field.required %}required{% endif %}
-                               class="form-input">
-                        {% if field.type in ['text', 'email'] %}
-                        <button type="button" class="mic-button" onclick="startSpeechRecognition(this, 'field_{{ loop.index0 }}')">
-                            🎤
-                        </button>
-                        {% endif %}
-                    </div>
-
-                    {% elif field.type == 'textarea' %}
-                    <textarea id="field_{{ loop.index0 }}" 
-                              name="field_{{ loop.index0 }}"
-                              {% if field.required %}required{% endif %}
-                              class="form-textarea"></textarea>
-
-                    {% elif field.type == 'radio' %}
-                    <div class="radio-group">
-                        {% for option in field.options %}
-                        <div class="radio-option">
-                            <input type="radio" 
-                                   id="field_{{ loop.parent.loop.index0 }}_{{ loop.index }}"
-                                   name="field_{{ loop.parent.loop.index0 }}"
-                                   value="{{ option }}"
-                                   {% if field.required %}required{% endif %}>
-                            <label for="field_{{ loop.parent.loop.index0 }}_{{ loop.index }}">{{ option }}</label>
-                        </div>
-                        {% endfor %}
-                    </div>
-
-                    {% elif field.type == 'checkbox' %}
-                    <div class="checkbox-group">
-                        {% for option in field.options %}
-                        <div class="checkbox-option">
-                            <input type="checkbox"
-                                   id="field_{{ loop.parent.loop.index0 }}_{{ loop.index }}"
-                                   name="field_{{ loop.parent.loop.index0 }}[]"
-                                   value="{{ option }}">
-                            <label for="field_{{ loop.parent.loop.index0 }}_{{ loop.index }}">{{ option }}</label>
-                        </div>
-                        {% endfor %}
-                    </div>
-
-                    {% elif field.type == 'select' %}
-                    <select id="field_{{ loop.index0 }}"
-                            name="field_{{ loop.index0 }}"
-                            {% if field.required %}required{% endif %}
-                            class="form-select">
-                        <option value="">Select an option</option>
-                        {% for option in field.options %}
-                        <option value="{{ option }}">{{ option }}</option>
-                        {% endfor %}
-                    </select>
+                <div class="card-body">
+                    {% if form.description %}
+                    <p class="card-text mb-4">
+                        <i class="fas fa-info-circle me-2"></i>{{ form.description }}
+                    </p>
+                    <hr>
                     {% endif %}
-                </div>
-                {% endfor %}
 
-                <div class="form-actions">
-                    <button type="submit" class="submit-button" {% if preview_mode %}disabled{% endif %}>
-                        {% if preview_mode %}Preview Mode{% else %}Submit{% endif %}
-                    </button>
+                    <form id="responseForm" method="POST" action="{{ url_for('submit_response', form_id=form_id) }}">
+                        <!-- Form Fields -->
+                        {% for field in form.fields %}
+                        <div class="mb-4">
+                            <label class="form-label fw-bold" for="field_{{ loop.index }}">
+                                {{ field.label }}
+                                {% if field.required %}
+                                <span class="text-danger">*</span>
+                                {% endif %}
+                            </label>
+
+                            {% if field.type == 'text' or field.type == 'email' or field.type == 'tel' %}
+                            <div class="input-group">
+                                <input type="{{ field.type }}" 
+                                       id="field_{{ loop.index }}"
+                                       name="field_{{ loop.index }}"
+                                       class="form-control" 
+                                       placeholder="Enter {{ field.label|lower }}"
+                                       {% if field.required %}required{% endif %}>
+                                <button type="button" class="btn btn-outline-secondary mic-button" data-field-id="field_{{ loop.index }}">
+                                    <i class="fas fa-microphone"></i>
+                                </button>
+                            </div>
+
+                            {% elif field.type == 'textarea' %}
+                            <div class="input-group">
+                                <textarea id="field_{{ loop.index }}"
+                                          name="field_{{ loop.index }}"
+                                          class="form-control" 
+                                          rows="3" 
+                                          placeholder="Enter {{ field.label|lower }}"
+                                          {% if field.required %}required{% endif %}></textarea>
+                                <button type="button" class="btn btn-outline-secondary mic-button" data-field-id="field_{{ loop.index }}">
+                                    <i class="fas fa-microphone"></i>
+                                </button>
+                            </div>
+
+                            {% elif field.type == 'select' %}
+                            <select id="field_{{ loop.index }}"
+                                    name="field_{{ loop.index }}"
+                                    class="form-select"
+                                    {% if field.required %}required{% endif %}>
+                                <option value="">Select {{ field.label|lower }}</option>
+                                {% for option in field.options %}
+                                <option value="{{ option }}">{{ option }}</option>
+                                {% endfor %}
+                            </select>
+
+                            {% elif field.type == 'radio' %}
+                            <div>
+                                {% for option in field.options %}
+                                <div class="form-check">
+                                    <input type="radio" 
+                                           id="field_{{ loop.parent.loop.index }}_{{ loop.index }}"
+                                           name="field_{{ loop.parent.loop.index }}"
+                                           value="{{ option }}"
+                                           class="form-check-input"
+                                           {% if field.required %}required{% endif %}>
+                                    <label class="form-check-label" for="field_{{ loop.parent.loop.index }}_{{ loop.index }}">
+                                        {{ option }}
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            {% elif field.type == 'checkbox' %}
+                            <div>
+                                {% for option in field.options %}
+                                <div class="form-check">
+                                    <input type="checkbox" 
+                                           id="field_{{ loop.parent.loop.index }}_{{ loop.index }}"
+                                           name="field_{{ loop.parent.loop.index }}[]"
+                                           value="{{ option }}"
+                                           class="form-check-input">
+                                    <label class="form-check-label" for="field_{{ loop.parent.loop.index }}_{{ loop.index }}">
+                                        {{ option }}
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+
+                            {% if field.help_text %}
+                            <div class="form-text text-muted">
+                                <i class="fas fa-question-circle me-1"></i>{{ field.help_text }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+
+                        <!-- Submit Button -->
+                        <div class="d-grid gap-2">
+                            {% if preview_mode %}
+                            <button type="button" class="btn btn-primary" onclick="previewSubmit()">
+                                <i class="fas fa-paper-plane me-2"></i>Preview Submit
+                            </button>
+                            {% else %}
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane me-2"></i>Submit Response
+                            </button>
+                            {% endif %}
+                        </div>
+                    </form>
                 </div>
-            </form>
+            </div>
+
+            {% if preview_mode %}
+            <div class="mt-4 text-center">
+                <a href="{{ url_for('edit_form', form_id=form.id) }}" class="btn btn-outline-primary">
+                    <i class="fas fa-pencil-alt me-2"></i>Back to Editor
+                </a>
+            </div>
+            {% endif %}
         </div>
     </div>
+</div>
 
-    <div id="successOverlay" class="overlay" style="display: none;">
-        <div class="overlay-content">
-            <h2>Thank You!</h2>
-            <p>Your form has been submitted successfully.</p>
-            <div class="overlay-actions">
-                <button onclick="submitAnother()">Submit Another Response</button>
-                <button onclick="window.location.href='/'">Back to Forms</button>
+<!-- Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-check-circle me-2"></i>Success
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Your response has been submitted successfully!</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
+</div>
 
-    <script>
-        // Initialize speech recognition
-        let recognition = null;
-        let currentMicButton = null;
+<!-- Error Modal -->
+<div class="modal fade" id="errorModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-circle me-2"></i>Error
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="errorMessage">An error occurred while submitting your response.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 
-        if ('webkitSpeechRecognition' in window) {
-            recognition = new webkitSpeechRecognition();
-            recognition.continuous = false;
-            recognition.interimResults = false;
-            recognition.lang = 'en-US';
+<!-- Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-eye me-2"></i>Preview Mode
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>This is a preview of your form. In preview mode, submissions are not actually saved.</p>
+                <div id="previewData" class="mt-3">
+                    <!-- Preview data will be inserted here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
 
-            recognition.onresult = function(event) {
-                const text = event.results[0][0].transcript;
-                document.getElementById(recognition.targetId).value = text;
-                // Dispatch input event to trigger autosave
-                document.getElementById(recognition.targetId).dispatchEvent(new Event('input'));
-            };
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize speech recognition
+    let recognition = null;
+    let isListening = false;
+    let currentButton = null;
 
-            recognition.onend = function() {
-                if (currentMicButton) {
-                    currentMicButton.classList.remove('recording');
-                }
-                recognition.recognizing = false;
-            };
+    if ('webkitSpeechRecognition' in window) {
+        recognition = new webkitSpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = 'en-US';
 
-            recognition.onerror = function(event) {
-                console.error('Speech recognition error:', event.error);
-                if (currentMicButton) {
-                    currentMicButton.classList.remove('recording');
-                }
-                recognition.recognizing = false;
-                
-                let errorMessage = 'An error occurred with speech recognition. ';
-                switch(event.error) {
-                    case 'network':
-                        errorMessage += 'Please check your internet connection.';
-                        break;
-                    case 'not-allowed':
-                    case 'permission-denied':
-                        errorMessage += 'Please allow microphone access.';
-                        break;
-                    case 'no-speech':
-                        errorMessage += 'No speech was detected.';
-                        break;
-                    default:
-                        errorMessage += 'Please try again.';
-                }
-                alert(errorMessage);
-            };
-        } else {
-            console.log('Speech recognition not supported');
+        recognition.onstart = function() {
+            isListening = true;
+            if (currentButton) {
+                currentButton.classList.add('listening');
+                const icon = currentButton.querySelector('i');
+                icon.classList.remove('fa-microphone');
+                icon.classList.add('fa-stop');
+            }
+        };
+
+        recognition.onend = function() {
+            isListening = false;
+            if (currentButton) {
+                currentButton.classList.remove('listening');
+                const icon = currentButton.querySelector('i');
+                icon.classList.remove('fa-stop');
+                icon.classList.add('fa-microphone');
+                currentButton = null;
+            }
+        };
+
+        recognition.onresult = function(event) {
+            const transcript = event.results[0][0].transcript;
+            if (currentButton) {
+                const fieldId = currentButton.dataset.fieldId;
+                const field = document.getElementById(fieldId);
+                field.value = field.value ? field.value + ' ' + transcript : transcript;
+                field.focus();
+            }
+        };
+
+        recognition.onerror = function(event) {
+            console.error('Speech recognition error:', event.error);
+            if (currentButton) {
+                currentButton.classList.remove('listening');
+                const icon = currentButton.querySelector('i');
+                icon.classList.remove('fa-stop');
+                icon.classList.add('fa-microphone');
+                currentButton = null;
+            }
+        };
+    }
+
+    // Handle microphone buttons
+    document.querySelectorAll('.mic-button').forEach(button => {
+        if (!recognition) {
+            button.style.display = 'none';
+            return;
         }
 
-        function startSpeechRecognition(button, targetId) {
-            if (!recognition) {
-                alert('Speech recognition is not supported in your browser. Please use Chrome.');
-                return;
-            }
-
-            if (recognition.recognizing) {
+        button.addEventListener('click', function() {
+            if (isListening && currentButton === this) {
                 recognition.stop();
-                return;
-            }
-
-            currentMicButton = button;
-            recognition.targetId = targetId;
-            
-            try {
-                currentMicButton.classList.add('recording');
-                recognition.start();
-                recognition.recognizing = true;
-            } catch (e) {
-                console.error('Speech recognition error:', e);
-                currentMicButton.classList.remove('recording');
-                recognition.recognizing = false;
-            }
-        }
-
-        // Form submission handling
-        const formView = document.getElementById('formView');
-        if (formView) {
-            formView.addEventListener('submit', async function(e) {
-                e.preventDefault();
-                
-                const previewMode = document.getElementById('app-data')?.dataset.previewMode === 'true';
-                if (previewMode) {
-                    alert('This is a preview. Form submission is disabled.');
-                    return;
+            } else {
+                if (isListening) {
+                    recognition.stop();
                 }
-                
+                currentButton = this;
                 try {
-                    const formData = new FormData(this);
-                    const response = await fetch(this.action, {
-                        method: 'POST',
-                        body: formData
-                    });
-                    
-                    const result = await response.json();
-                    
-                    if (response.ok) {
-                        document.getElementById('successOverlay').style.display = 'flex';
-                    } else {
-                        alert(result.error || 'Error submitting form');
-                    }
+                    recognition.start();
                 } catch (error) {
-                    console.error('Error:', error);
-                    alert('Error submitting form. Please try again.');
+                    console.error('Speech recognition error:', error);
+                    recognition.stop();
                 }
-            });
-        }
-
-        function submitAnother() {
-            document.getElementById('successOverlay').style.display = 'none';
-            document.getElementById('formView').reset();
-        }
-
-        function handleCancel() {
-            const homeUrl = document.getElementById('app-data')?.dataset.homeUrl;
-            if (homeUrl) {
-                window.location.href = homeUrl;
             }
+        });
+    });
+
+    // Handle form submission
+    const form = document.getElementById('responseForm');
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const formData = new FormData(form);
+        const submitButton = form.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Submitting...';
+
+        try {
+            console.log('Submitting form to:', form.action);
+            console.log('Form data:', Object.fromEntries(formData));
+            
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+            console.log('Server response:', data);
+
+            if (response.ok) {
+                const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+                successModal.show();
+                form.reset();
+                
+                // Optionally redirect to responses page after successful submission
+                setTimeout(() => {
+                    window.location.href = `/forms/${form_id}/responses`;
+                }, 2000);
+            } else {
+                const errorModal = new bootstrap.Modal(document.getElementById('errorModal'));
+                document.getElementById('errorMessage').textContent = data.error || 'An error occurred while submitting your response.';
+                errorModal.show();
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            const errorModal = new bootstrap.Modal(document.getElementById('errorModal'));
+            document.getElementById('errorMessage').textContent = 'Network error occurred. Please try again.';
+            errorModal.show();
+        } finally {
+            submitButton.disabled = false;
+            submitButton.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Submit Response';
         }
-    </script>
-</body>
-</html>
+    });
+});
+
+// Preview mode submission handler
+function previewSubmit() {
+    const form = document.getElementById('responseForm');
+    const formData = new FormData(form);
+    const previewData = document.getElementById('previewData');
+    let previewHtml = '<h6>Form Data Preview:</h6><dl class="row">';
+
+    for (let [name, value] of formData.entries()) {
+        const fieldId = name.replace('[]', '');
+        const label = document.querySelector(`label[for="${fieldId}"]`)?.textContent.trim() || name;
+        const cleanLabel = label.replace(/\*$/, '').trim(); // Remove required asterisk if present
+        
+        if (name.endsWith('[]')) {
+            // Handle checkbox groups
+            const values = formData.getAll(name);
+            previewHtml += `
+                <dt class="col-sm-4">${cleanLabel}</dt>
+                <dd class="col-sm-8">${values.length ? values.join(', ') : '(none selected)'}</dd>
+            `;
+        } else {
+            previewHtml += `
+                <dt class="col-sm-4">${cleanLabel}</dt>
+                <dd class="col-sm-8">${value || '(empty)'}</dd>
+            `;
+        }
+    }
+
+    previewHtml += '</dl>';
+    previewData.innerHTML = previewHtml;
+
+    const previewModal = new bootstrap.Modal(document.getElementById('previewModal'));
+    previewModal.show();
+}
+</script>
+{% endblock %}

@@ -1,333 +1,84 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Form Responses - {{ form_title }}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <style>
-        /* Theme Variables */
-        .theme-default {
-            --primary-color: #7C3AED;
-            --primary-hover: #6D28D9;
-            --secondary-color: #F4F4F5;
-            --text-primary: #18181B;
-            --text-secondary: #71717A;
-            --background: #F8FAFC;
-            --surface: #FFFFFF;
-            --border: #E4E4E7;
-            --error: #EF4444;
-        }
+{% extends "base.html" %}
 
-        .theme-dark {
-            --primary-color: #8B5CF6;
-            --primary-hover: #7C3AED;
-            --secondary-color: #374151;
-            --text-primary: #F9FAFB;
-            --text-secondary: #D1D5DB;
-            --background: #111827;
-            --surface: #1F2937;
-            --border: #374151;
-            --error: #EF4444;
-        }
-
-        .theme-colorful {
-            --primary-color: #FF6B6B;
-            --primary-hover: #FA5252;
-            --secondary-color: #4ECDC4;
-            --text-primary: #2C3E50;
-            --text-secondary: #34495E;
-            --background: #F8F9FA;
-            --surface: #FFFFFF;
-            --border: #CED4DA;
-            --error: #E74C3C;
-        }
-
-        .theme-minimal {
-            --primary-color: #000000;
-            --primary-hover: #333333;
-            --secondary-color: #F5F5F5;
-            --text-primary: #000000;
-            --text-secondary: #666666;
-            --background: #FFFFFF;
-            --surface: #FFFFFF;
-            --border: #EEEEEE;
-            --error: #FF0000;
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: var(--background);
-            color: var(--text-primary);
-            transition: all 0.3s ease;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .nav-links {
-            margin-bottom: 1rem;
-        }
-
-        .nav-links a {
-            color: var(--primary-color);
-            text-decoration: none;
-            font-weight: 500;
-            margin-right: 1rem;
-            transition: color 0.2s ease;
-        }
-
-        .nav-links a:hover {
-            color: var(--primary-hover);
-        }
-
-        .header {
-            background: var(--surface);
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .header h1 {
-            margin: 0;
-            color: var(--text-primary);
-            font-size: 1.5rem;
-            font-weight: 600;
-            background: linear-gradient(135deg, var(--primary-color), #9F7AEA);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .responses-container {
-            background: var(--surface);
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            padding: 1.5rem;
-            overflow-x: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            min-width: 600px;
-            font-size: 0.875rem;
-        }
-
-        th, td {
-            text-align: left;
-            padding: 1rem;
-            border-bottom: 1px solid var(--border);
-        }
-
-        th {
-            background-color: var(--secondary-color);
-            color: var(--text-primary);
-            font-weight: 500;
-            position: sticky;
-            top: 0;
-        }
-
-        tr:hover {
-            background-color: var(--secondary-color);
-        }
-
-        .timestamp {
-            color: var(--text-secondary);
-            font-size: 0.875rem;
-            white-space: nowrap;
-        }
-
-        .no-responses {
-            text-align: center;
-            padding: 3rem 1.5rem;
-            color: var(--text-secondary);
-        }
-
-        .export-btn {
-            background: var(--primary-color);
-            color: white;
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.875rem;
-            font-weight: 500;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .export-btn:hover {
-            background: var(--primary-hover);
-            transform: translateY(-1px);
-        }
-
-        .export-btn::before {
-            content: "📊";
-        }
-
-        @media (max-width: 640px) {
-            .container {
-                padding: 0;
-            }
-            
-            .header {
-                flex-direction: column;
-                gap: 1rem;
-                text-align: center;
-            }
-            
-            .responses-container {
-                border-radius: 0;
-                padding: 1rem;
-            }
-            
-            th, td {
-                padding: 0.75rem;
-            }
-        }
-
-        /* Scrollbar Styling */
-        .responses-container::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-
-        .responses-container::-webkit-scrollbar-track {
-            background: var(--background);
-            border-radius: 4px;
-        }
-
-        .responses-container::-webkit-scrollbar-thumb {
-            background: var(--border);
-            border-radius: 4px;
-        }
-
-        .responses-container::-webkit-scrollbar-thumb:hover {
-            background: var(--text-secondary);
-        }
-    </style>
-</head>
-<body class="theme-{{ theme }}">
-    <!-- Template Data -->
-    <script type="application/json" id="response-data">
-        {
-            "fields": {{ fields | tojson | safe }},
-            "responses": {{ responses | tojson | safe }},
-            "formTitle": {{ form_title | tojson | safe }}
-        }
-    </script>
-
-    <div class="container">
-        <div class="nav-links">
-            <a href="{{ url_for('home') }}">← Back to Forms</a>
-            <a href="{{ url_for('view_form', form_id=form_id) }}">View Form</a>
-        </div>
-        
-        <div class="header">
-            <h1>{{ form_title }} - Responses</h1>
-            <div class="header-actions">
-                <a href="{{ url_for('home') }}" class="btn btn-secondary">Back to Forms</a>
-                <a href="{{ url_for('export_responses', form_id=form_id) }}" class="export-btn">
-                    📊 Export to CSV
-                </a>
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i class="fas fa-chart-bar me-2"></i>Form Responses
+                </h2>
+                <div>
+                    <a href="{{ url_for('view_form', form_id=form.id) }}" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-eye me-2"></i>View Form
+                    </a>
+                    <a href="{{ url_for('share_form', form_id=form.id) }}" class="btn btn-success">
+                        <i class="fas fa-share-alt me-2"></i>Share Form
+                    </a>
+                </div>
             </div>
-        </div>
 
-        <div class="responses-container">
+            <!-- Form Info -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h3 class="card-title">
+                        <i class="fas fa-file-alt me-2"></i>{{ form.title }}
+                    </h3>
+                    {% if form.description %}
+                    <p class="card-text text-muted">
+                        <i class="fas fa-info-circle me-2"></i>{{ form.description }}
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Responses -->
             {% if responses %}
-                <table>
-                    <thead>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-light">
                         <tr>
-                            <th>Timestamp</th>
-                            {% for field in fields %}
-                                <th>{{ field.label }}</th>
+                            <th scope="col">#</th>
+                            {% for field in form.fields %}
+                            <th scope="col">{{ field.label }}</th>
                             {% endfor %}
+                            <th scope="col">Submitted At</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for response in responses %}
-                            <tr>
-                                <td class="timestamp">{{ response.created_at }}</td>
-                                {% for field in fields %}
-                                    <td>
-                                        {% if response.data[field.label] is sequence and response.data[field.label] is not string %}
-                                            {{ response.data[field.label] | join(', ') }}
-                                        {% else %}
-                                            {{ response.data[field.label] }}
-                                        {% endif %}
-                                    </td>
-                                {% endfor %}
-                            </tr>
+                        <tr>
+                            <th scope="row">{{ loop.index }}</th>
+                            {% for field in form.fields %}
+                            <td>
+                                {% set field_name = 'field_' ~ loop.index %}
+                                {% if field.type == 'checkbox' %}
+                                    {{ response.response_data[field_name]|join(', ') if response.response_data[field_name] else '-' }}
+                                {% else %}
+                                    {{ response.response_data[field_name] if response.response_data[field_name] else '-' }}
+                                {% endif %}
+                            </td>
+                            {% endfor %}
+                            <td>{{ response.created_at|datetime }}</td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>
+            </div>
             {% else %}
-                <div class="no-responses">
-                    <p>No responses yet. Share your form to start collecting responses!</p>
-                </div>
+            <div class="alert alert-info" role="alert">
+                <i class="fas fa-info-circle me-2"></i>No responses yet. Share your form to start collecting responses!
+            </div>
             {% endif %}
+
+            <!-- Back Button -->
+            <div class="mt-4">
+                <a href="{{ url_for('home') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Forms
+                </a>
+            </div>
         </div>
     </div>
-
-    <script>
-        function escapeCSV(str) {
-            if (typeof str !== 'string') {
-                str = String(str || '');
-            }
-            return `"${str.replace(/"/g, '""')}"`;
-        }
-
-        function exportToCSV() {
-            const data = JSON.parse(document.getElementById('response-data').textContent);
-            
-            // Prepare headers
-            const headers = ['Timestamp'].concat(data.fields.map(f => f.label));
-            
-            // Prepare rows
-            const rows = [headers];
-            
-            // Add response data
-            data.responses.forEach(response => {
-                const row = [
-                    response.created_at.split('.')[0],
-                    ...response.data
-                ];
-                rows.push(row);
-            });
-
-            // Convert to CSV
-            const csvContent = rows
-                .map(row => row.map(cell => escapeCSV(cell)).join(','))
-                .join('\n');
-            
-            // Create and trigger download
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            const filename = data.formTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '_responses.csv';
-            
-            if (navigator.msSaveBlob) {
-                navigator.msSaveBlob(blob, filename);
-                return;
-            }
-            
-            link.href = URL.createObjectURL(blob);
-            link.download = filename;
-            link.style.display = 'none';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-    </script>
-</body>
-</html>
+</div>
+{% endblock %}
