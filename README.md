@@ -1,5 +1,31 @@
 # Fill Easy: Beyond QWERTY - Voice-Powered Form Builder
 
+Deployment Link : https://render-3-l3hi.onrender.com/login
+
+we are using an free provider it may take 15 to 20 minutes for signing up
+
+u can login by this details
+
+Email id : venkatasairevanthsannidhi@gmail.com
+Password : Svsr@2004
+
+
+we have made an Android and ios applications too u can check our android and ios repos from here u 
+
+Android : https://github.com/svsairevanth12/android
+Ios : https://github.com/svsairevanth12/filleasy_ios
+
+
+u can download and install the andoid apk from here : 
+
+
+
+
+
+
+
+
+
 ## Project Description
 Fill Easy is a revolutionary form management solution designed to eliminate the inefficiencies and costs associated with traditional paper-based form processes across various sectors. Our platform specifically addresses the challenges faced by banking, healthcare, and educational institutions that struggle with manual form printing and processing costs. By providing a customizable, AI-powered digital form solution, organizations can significantly reduce operational costs while improving data collection efficiency.
 
